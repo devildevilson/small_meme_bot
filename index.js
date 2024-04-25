@@ -35,13 +35,17 @@ async function aperf(msg, func, ...args) {
 }
 
 function rnd_int(min, max) {
-  return Math.floor((Math.random() * (max - min)) + min);
+  let val = 0;
+  do {
+  	val = Math.floor((Math.random() * (max - min)) + min);
+  } while (val >= max);
+  return val;
 }
 
 function dice(count, bound) {
   let summ = 0;
   for (let i = 0; i < count; ++i) {
-    summ += rnd_int(1, bound);
+    summ += rnd_int(1, bound+1);
   }
   return summ;
 }
@@ -111,10 +115,18 @@ function compute_expr(obj) {
 //   console.log(val);
 // });
 
-const digit_regex = /[0-9]+/g;
+const digit_regex = /^[0-9]+$/g;
+
+async function ignore_errors(func, ...args) {
+  try {
+  	await func(...args);
+  } catch (e) {
+  	console.log(e);
+  }
+}
 
 async function parse_msg(msg) {
-  console.log(msg);
+  //console.log(msg);
   // теперь тут у нас два варианта: 
   // либо тут может придти команда
   // либо приходит одно сообщение
@@ -142,7 +154,7 @@ async function parse_msg(msg) {
     if (first_word !== "/roll") return; // пока что только одна
     const msg_rest = msg_text.split(" ").slice(1).join(" ").trim();
     let val = 0;
-    console.log(msg_rest);
+    //console.log(msg_rest);
     if (digit_regex.test(msg_rest)) {
       // если перед нами просто число, то возьмем от нуля до него
       const num = parseInt(msg_rest);
@@ -150,12 +162,13 @@ async function parse_msg(msg) {
       val = rnd_int(0, num);
     } else {
       const math_obj = math.parse(msg_rest);
+      //console.log(math_obj);
       val = compute_expr(math_obj);
     }
 
     const ret = await axios.post(telegram_api_send_url, {
       chat_id,
-      text: `Your number is ${val}`,
+      text: `${val}`,
       reply_parameters: { message_id: msg.message.message_id }
     });
     return;
@@ -169,7 +182,8 @@ fastify.after(() => {
     method: 'POST',
     path: '/',
     handler: async (request, reply) => {
-      parse_msg(request.body);
+      //parse_msg(request.body);
+      ignore_errors(parse_msg, request.body);
       return "Ok";
     },
     schema: {
