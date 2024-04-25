@@ -4,8 +4,11 @@ const wikipedia = require("@dada513/wikipedia-search");
 const math = require("mathjs");
 const tr = require("transliteration");
 const dic = require("urban-dictionary");
+const axios = require("axios");
 
 const fastify = require("fastify")();
+
+const telegram_api_send_url = `https://api.telegram.org/bot${process.env.TELEGRAM_API_TOKEN}/sendMessage`;
 
 function perf(msg, func, ...args) {
   const start_time = performance.now();
@@ -108,6 +111,8 @@ function compute_expr(obj) {
 //   console.log(val);
 // });
 
+const digit_regex = /[0-9]+/g;
+
 async function parse_msg(msg) {
   console.log(msg);
   // теперь тут у нас два варианта: 
@@ -126,6 +131,36 @@ async function parse_msg(msg) {
   // загуглить их в википедии + мы можем взять транслитерацию и ее попробовать найти
   // 
   // так еще было бы неплохо брать смешнявку из реддита, но там придется получать картинку или даже видос и сгружать его в телегу
+
+  if (!msg.message && !msg.message.text) return;
+
+  const chat_id = msg.message.chat.id;
+  const msg_text = msg.message.text;
+  const first_word = msg_text.split(" ")[0].trim();
+  if (first_word[0] === "/") {
+    // это команда
+    if (first_word !== "/roll") return; // пока что только одна
+    const msg_rest = msg_text.split(" ").slice(1).join(" ").trim();
+    let val = 0;
+    if (digit_regex.test(msg_rest)) {
+      // если перед нами просто число, то возьмем от нуля до него
+      const num = parseInt(msg_rest);
+      if (isNaN(num)) return;
+      val = rnd_int(0, num);
+    } else {
+      const math_obj = math.parse(msg_rest);
+      val = compute_expr(math_obj);
+    }
+
+    const ret = await axios.post(telegram_api_send_url, {
+      chat_id,
+      text: `Your number is ${val}`,
+      reply_parameters: { message_id: msg.message.message_id }
+    });
+    return;
+  }
+
+  // если это не команда, то пока оставим как есть
 }
 
 fastify.after(() => {
@@ -145,6 +180,7 @@ fastify.after(() => {
 });
 
 (async () => {
+  console.log("Starting");
   try {
     await fastify.listen({ 
       port: process.env.SERVER_PORT,
