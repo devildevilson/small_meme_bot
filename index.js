@@ -3,7 +3,7 @@ const levenshtein = require('js-levenshtein');
 const wikipedia = require("@dada513/wikipedia-search");
 const math = require("mathjs");
 const tr = require("transliteration");
-const dic = require("urban-dictionary");
+const dic = require("urban-dictionaryy");
 const axios = require("axios");
 
 const fastify = require("fastify")();
@@ -132,7 +132,7 @@ async function parse_msg(msg) {
   // 
   // так еще было бы неплохо брать смешнявку из реддита, но там придется получать картинку или даже видос и сгружать его в телегу
 
-  if (!msg.message && !msg.message.text) return;
+  if (!msg.message || !msg.message.text) return;
 
   const chat_id = msg.message.chat.id;
   const msg_text = msg.message.text;
@@ -142,6 +142,7 @@ async function parse_msg(msg) {
     if (first_word !== "/roll") return; // пока что только одна
     const msg_rest = msg_text.split(" ").slice(1).join(" ").trim();
     let val = 0;
+    console.log(msg_rest);
     if (digit_regex.test(msg_rest)) {
       // если перед нами просто число, то возьмем от нуля до него
       const num = parseInt(msg_rest);
