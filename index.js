@@ -10,6 +10,11 @@ const fastify = require("fastify")();
 
 const telegram_api_send_url = `https://api.telegram.org/bot${process.env.TELEGRAM_API_TOKEN}/sendMessage`;
 
+const anek1_http_get = `http://rzhunemogu.ru/Rand.aspx?CType=1`;
+const anek2_http_get = `http://rzhunemogu.ru/Rand.aspx?CType=11`;
+
+const digit_regex = /^[0-9]+$/g;
+
 function perf(msg, func, ...args) {
   const start_time = performance.now();
   try {
@@ -106,16 +111,45 @@ function compute_expr(obj) {
   return ret;
 }
 
-// perf("test", () => { 
-//   const abc = math.parse("(2d4 + 1) * 1d20");
-//   // console.log(abc);
-//   // console.log(abc instanceof math.OperatorNode);
-//   // console.log(abc.args[0].content.args[0].args);
-//   const val = compute_expr(abc);
-//   console.log(val);
-// });
+const commands_list = {
+  "/roll": async (msg, msg_obj) => {
+    let val = 0;
+    //console.log(msg_rest);
+    if (digit_regex.test(msg)) {
+      // если перед нами просто число, то возьмем от нуля до него
+      const num = parseInt(msg);
+      if (isNaN(num)) return;
+      val = rnd_int(0, num);
+    } else {
+      const math_obj = math.parse(msg);
+      //console.log(math_obj);
+      val = compute_expr(math_obj);
+    }
 
-const digit_regex = /^[0-9]+$/g;
+    const ret = await axios.post(telegram_api_send_url, {
+      chat_id,
+      text: `${val}`,
+      reply_parameters: { message_id: msg_obj.message.message_id }
+    });
+  },
+
+  "/calc": async (msg, msg_obj) => {
+    const math_obj = math.parse(msg);
+    //console.log(math_obj);
+    const val = compute_expr(math_obj);
+
+    const ret = await axios.post(telegram_api_send_url, {
+      chat_id,
+      text: `${val}`,
+      reply_parameters: { message_id: msg_obj.message.message_id }
+    });
+  },
+
+  "/anek": async (msg, msg_obj) => {
+    const ret = await axios.get(anek1_http_get);
+    console.log(ret);
+  },
+};
 
 async function ignore_errors(func, ...args) {
   try {
@@ -150,27 +184,11 @@ async function parse_msg(msg) {
   const msg_text = msg.message.text;
   const first_word = msg_text.split(" ")[0].trim();
   if (first_word[0] === "/") {
-    // это команда
-    if (first_word !== "/roll") return; // пока что только одна
-    const msg_rest = msg_text.split(" ").slice(1).join(" ").trim();
-    let val = 0;
-    //console.log(msg_rest);
-    if (digit_regex.test(msg_rest)) {
-      // если перед нами просто число, то возьмем от нуля до него
-      const num = parseInt(msg_rest);
-      if (isNaN(num)) return;
-      val = rnd_int(0, num);
-    } else {
-      const math_obj = math.parse(msg_rest);
-      //console.log(math_obj);
-      val = compute_expr(math_obj);
-    }
+    const f = commands_list[first_word];
+    if (!f) return;
 
-    const ret = await axios.post(telegram_api_send_url, {
-      chat_id,
-      text: `${val}`,
-      reply_parameters: { message_id: msg.message.message_id }
-    });
+    const msg_rest = msg_text.split(" ").slice(1).join(" ").trim();
+    await f(msg_rest, msg);
     return;
   }
 

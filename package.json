@@ -13,6 +13,7 @@
     "@dada513/wikipedia-search": "^1.0.1",
     "axios": "^1.6.8",
     "dotenv": "^16.4.5",
+    "fast-xml-parser": "^4.3.6",
     "fastify": "^4.26.2",
     "js-levenshtein": "^1.1.6",
     "mathjs": "^12.4.1",
