@@ -5,6 +5,8 @@ const math = require("mathjs");
 const tr = require("transliteration");
 const dic = require("urban-dictionaryy");
 const axios = require("axios");
+const Iconv = require('iconv').Iconv;
+const { XMLParser, XMLBuilder, XMLValidator} = require("fast-xml-parser");
 
 const fastify = require("fastify")();
 
@@ -12,6 +14,9 @@ const telegram_api_send_url = `https://api.telegram.org/bot${process.env.TELEGRA
 
 const anek1_http_get = `http://rzhunemogu.ru/Rand.aspx?CType=1`;
 const anek2_http_get = `http://rzhunemogu.ru/Rand.aspx?CType=11`;
+
+const xml_parser = new XMLParser();
+const conv_from_1251 = Iconv('windows-1251', 'utf8');
 
 const digit_regex = /^[0-9]+$/g;
 
@@ -113,6 +118,7 @@ function compute_expr(obj) {
 
 const commands_list = {
   "/roll": async (msg, msg_obj) => {
+  	const chat_id = msg_obj.message.chat.id;
     let val = 0;
     //console.log(msg_rest);
     if (digit_regex.test(msg)) {
@@ -134,6 +140,7 @@ const commands_list = {
   },
 
   "/calc": async (msg, msg_obj) => {
+    const chat_id = msg_obj.message.chat.id;
     const math_obj = math.parse(msg);
     //console.log(math_obj);
     const val = compute_expr(math_obj);
@@ -146,8 +153,19 @@ const commands_list = {
   },
 
   "/anek": async (msg, msg_obj) => {
-    const ret = await axios.get(anek1_http_get);
-    console.log(ret);
+  	const chat_id = msg_obj.message.chat.id;
+    const ret = await axios.get(anek1_http_get, { responseEncoding: "binary" });
+
+    const body = Buffer.from(ret.data, 'binary');
+    const str = conv_from_1251.convert(body).toString();
+    const obj = xml_parser.parse(str);
+    //console.log(obj.root.content);
+
+    const tret = await axios.post(telegram_api_send_url, {
+      chat_id,
+      text: obj.root.content,
+      reply_parameters: { message_id: msg_obj.message.message_id }
+    });
   },
 };
 
